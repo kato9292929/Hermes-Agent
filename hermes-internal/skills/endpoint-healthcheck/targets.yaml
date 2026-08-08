@@ -1,0 +1,6 @@
+# Real health-check targets for THIS deployment.
+#
+# Shipped empty on purpose. Add entries using the schema in targets.example.yaml.
+# While this list is empty, run_healthcheck.py exits with code 3 ("No targets
+# configured") so the empty state is visible and never mistaken for success.
+targets: []

@@ -1,0 +1,79 @@
+# Hermes Agent — annotated EXAMPLE config (v0.20.0 / tag v2026.8.3)
+#
+# This is a documentation companion to config/config.yaml. It shows the same
+# baseline PLUS the optional blocks (outbound webhook, messaging gateways)
+# filled in, so you can see the exact shape before enabling them.
+#
+# The ACTIVE file is config/config.yaml. Do not point the deployment at this
+# example. All keys are verified against upstream — see docs/hermes-facts.md.
+
+model:
+  default: ${env:HERMES_MODEL}
+  provider: ${env:HERMES_MODEL_PROVIDER}
+
+toolsets:
+  - safe
+
+approvals:
+  mode: manual
+  cron_mode: deny
+  smart_policy: ""
+  denial_breaker_threshold: 3
+  subagent_auto_approve: false
+  deny:
+    - "rm -rf /*"
+    - "rm -rf ~*"
+    - "*curl*|*sh*"
+    - "*wget*|*sh*"
+    - "git push --force*"
+    - "dd if=*"
+    - "mkfs*"
+    - "chmod -R 777*"
+
+command_allowlist: []
+
+tool_loop_guardrails:
+  loop_caps:
+    max_web_searches: 10
+    max_subagents: 4
+
+agent:
+  max_turns: 500
+tool_output:
+  max_lines: 2000
+
+compression:
+  enabled: true
+  threshold: 0.50
+  threshold_tokens: null
+  min_tail_user_messages: 1
+  model_thresholds: {}
+
+logging:
+  level: INFO
+  max_size_mb: 5
+  backup_count: 3
+
+# --- Outbound webhook, ENABLED example ------------------------------------
+# Set HERMES_OUTBOUND_WEBHOOK_URL and HERMES_OUTBOUND_WEBHOOK_SECRET, then this
+# posts signed lifecycle events. Header: X-Hermes-Signature-256: sha256=<hex>
+# (HMAC-SHA256 over the raw JSON body). Verify with the snippet in
+# docs/hermes-facts.md §10.
+hooks:
+  outbound:
+    - name: internal-notify
+      url: ${env:HERMES_OUTBOUND_WEBHOOK_URL}
+      events: [on_session_end, subagent_stop]
+      secret_env: HERMES_OUTBOUND_WEBHOOK_SECRET
+      timeout: 10
+
+# --- Messaging gateway, ENABLED example (use case #4 — for later) ---------
+# Each platform is a TOP-LEVEL key. Tokens live in $HERMES_HOME/.env, not here.
+# Run `hermes gateway setup` in environment B to wire credentials/webhooks.
+# UNVERIFIED: exact LINE keys (no line: section in DEFAULT_CONFIG); Slack shown
+# as a concrete, verified example (config_defaults.py:1891).
+# slack:
+#   require_mention: true
+#   allowed_channels: ""          # comma-separated channel IDs
+#   free_response_channels: ""
+# telegram: {}

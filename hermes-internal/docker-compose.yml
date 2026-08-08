@@ -1,0 +1,30 @@
+# Local verification of the internal Hermes agent.
+#
+#   cp .env.example .env      # then fill in required values
+#   docker compose up --build
+#
+# Uses a named volume for HERMES_HOME (/opt/data) so state persists across
+# restarts without host-permission juggling. To inspect state, `docker compose
+# exec hermes ls /opt/data`.
+services:
+  hermes:
+    build: .
+    image: hermes-internal
+    container_name: hermes-internal
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # UID/GID the container remaps the internal `hermes` user to. Defaults
+      # match the base image (10000). Only matters if you switch to a host mount.
+      - HERMES_UID=${HERMES_UID:-10000}
+      - HERMES_GID=${HERMES_GID:-10000}
+    volumes:
+      - hermes-data:/opt/data
+    # Resident gateway also drives the built-in cron scheduler. This mirrors the
+    # image's default CMD; shown explicitly for clarity.
+    command: ["gateway", "run"]
+
+volumes:
+  hermes-data:

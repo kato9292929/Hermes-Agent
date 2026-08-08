@@ -1,0 +1,120 @@
+# Hermes Agent — internal single-agent config (v0.20.0 / tag v2026.8.3)
+#
+# This file is CONFIG-AS-CODE. It is baked into the image and copied onto the
+# HERMES_HOME volume ($HERMES_HOME/config.yaml, = /opt/data/config.yaml in the
+# container) on every boot by docker/cont-init.d/03-hermes-internal-seed.
+# Edit it here in the repo, not at runtime — a runtime edit is overwritten on
+# the next boot.
+#
+# It is a PARTIAL config: unspecified keys fall back to Hermes' DEFAULT_CONFIG
+# (hermes_cli/config_defaults.py). Only the keys this deployment cares about are
+# set. Every key below is verified against the upstream source — see
+# docs/hermes-facts.md for file:line citations. No key here is guessed.
+#
+# Secrets are NEVER written literally. They are ${env:VAR} references resolved
+# from $HERMES_HOME/.env or the process environment (Railway variables).
+# A missing ${env:VAR} keeps the literal placeholder and logs a warning, which
+# fails loudly downstream rather than silently blanking — by design.
+
+# --- Model ---------------------------------------------------------------
+# provider reads its OWN API-key env var (e.g. OPENROUTER_API_KEY / NOUS_API_KEY
+# / ANTHROPIC_API_KEY). See docs/hermes-facts.md §11 and .env.example.
+# UNVERIFIED: the exact working (model id, provider) pair needs a real API key
+# to validate (environment B). Set both via env; do not hardcode a model here.
+model:
+  default: ${env:HERMES_MODEL}          # e.g. "anthropic/claude-3.5-sonnet" (provider-specific id)
+  provider: ${env:HERMES_MODEL_PROVIDER} # e.g. "openrouter", "nous", "anthropic", or "auto"
+
+# --- Enabled tools (the real "allowlist") --------------------------------
+# Access control in Hermes is by TOOLSET, not a per-tool allowlist. "safe" is
+# the upstream "Safe toolkit without terminal access" (web + vision + image_gen)
+# — the LLM cannot run shell/terminal, execute_code, or delegate_task. This is
+# how "do not allow terminal unrestrictedly" is enforced.
+# The daily endpoint health check does NOT rely on the LLM having terminal: it
+# runs deterministically as a --no-agent cron script (see scripts/healthcheck.sh).
+toolsets:
+  - safe
+
+# --- Approvals (allowlist / deny posture; NOT YOLO) ----------------------
+# mode "manual" = every approval-required action must be explicitly approved.
+# We deliberately do NOT use mode "off" (that is the YOLO / full-allow mode).
+approvals:
+  mode: manual
+  cron_mode: deny            # in cron context, approval-required actions are denied (fail closed)
+  smart_policy: ""           # unused under manual mode; left explicit
+  denial_breaker_threshold: 3 # consecutive-denial circuit breaker (0 disables)
+  subagent_auto_approve: false
+  # fnmatch globs blocked BEFORE any bypass. Defense-in-depth for the case a
+  # future toolset enables terminal. Case-insensitive; patterns with * / {} / :
+  # must be quoted (per upstream comment at config_defaults.py:2063-2069).
+  deny:
+    - "rm -rf /*"
+    - "rm -rf ~*"
+    - "*curl*|*sh*"
+    - "*wget*|*sh*"
+    - "git push --force*"
+    - "dd if=*"
+    - "mkfs*"
+    - "chmod -R 777*"
+
+# Pre-approved dangerous shell-command globs. Empty: nothing shell-level is
+# pre-approved. (The daily check runs via --no-agent, not through this path.)
+command_allowlist: []
+
+# --- Tool-loop guardrails ------------------------------------------------
+# NOTE: these caps are PER-TURN and reset each turn — they are NOT session-wide.
+# The v0.20.0 release note's "session-wide" wording does not match a session
+# key in the schema (see docs/hermes-facts.md §4 and docs/UNVERIFIED.md).
+tool_loop_guardrails:
+  loop_caps:
+    max_web_searches: 10     # default 50; lowered for an unattended internal agent
+    max_subagents: 4         # default 50; lowered (delegation is off under "safe" anyway)
+
+# --- Iteration + read caps (explicit; equal to upstream defaults) --------
+agent:
+  max_turns: 500
+tool_output:
+  max_lines: 2000
+
+# --- Compression (explicit; equal to upstream defaults) ------------------
+compression:
+  enabled: true
+  threshold: 0.50
+  threshold_tokens: null
+  min_tail_user_messages: 1
+  model_thresholds: {}
+
+# --- Logging -------------------------------------------------------------
+# Destination is fixed to $HERMES_HOME/logs/ (agent.log, errors.log).
+logging:
+  level: INFO
+  max_size_mb: 5
+  backup_count: 3
+
+# --- Outbound webhook notification (signed, HMAC-SHA256) -----------------
+# First-choice result/lifecycle notification (work order M5). Signature is sent
+# as header `X-Hermes-Signature-256: sha256=<hexdigest>` over the raw JSON body.
+# The RECEIVER is out of scope for this repo (verify per docs/hermes-facts.md §10).
+# Disabled unless BOTH the URL and secret env vars are set — enable by
+# uncommenting and providing HERMES_OUTBOUND_WEBHOOK_URL + the secret.
+# Scope caveat: hooks.outbound carries AGENT LIFECYCLE events, not arbitrary
+# report bodies; a --no-agent cron job may not emit one. See docs/UNVERIFIED.md.
+#
+# hooks:
+#   outbound:
+#     - name: internal-notify
+#       url: ${env:HERMES_OUTBOUND_WEBHOOK_URL}
+#       events: [on_session_end, subagent_stop]
+#       secret_env: HERMES_OUTBOUND_WEBHOOK_SECRET
+#       timeout: 10
+
+# --- Messaging gateways (use case #4 — DEFERRED, placeholder only) -------
+# LINE / Slack / Discord etc. are NOT enabled in this build. Each platform is a
+# TOP-LEVEL key (not nested under gateway:), and tokens live in $HERMES_HOME/.env
+# (e.g. SLACK_BOT_TOKEN, TELEGRAM_BOT_TOKEN), configured via `hermes gateway setup`.
+# UNVERIFIED: exact LINE config/env keys (no line: section in DEFAULT_CONFIG).
+#
+# slack:
+#   require_mention: true
+#   allowed_channels: ""        # comma-separated channel IDs
+# telegram: {}

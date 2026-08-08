@@ -1,0 +1,44 @@
+# Endpoint health-check targets — SCHEMA / EXAMPLE ONLY.
+#
+# Copy this file to `targets.yaml` (same directory) and fill in real endpoints.
+# `targets.yaml` is intentionally shipped EMPTY in this repo; do not commit real
+# internal endpoints here if they are sensitive — see .gitignore notes in README.
+#
+# Each entry supports these keys (see run_healthcheck.py / ALLOWED_TARGET_KEYS):
+#
+#   name                (optional) label used in the report; defaults to url
+#   url                 (required) full http(s) URL to probe
+#   method              (optional) HTTP method, default GET
+#   headers             (optional) map of request headers
+#   body                (optional) request body string (for POST etc.)
+#   timeout_seconds     (optional) per-target timeout; overrides --default-timeout
+#   expect_status       (optional) expected HTTP status, default 200
+#   expect_json_fields  (optional) list of dotted paths that MUST exist in the
+#                       JSON response body, e.g. "data.version"
+
+targets:
+  # A normal JSON health endpoint: expect 200 and two required fields.
+  - name: example-api-health
+    url: https://api.example.com/healthz
+    expect_status: 200
+    expect_json_fields:
+      - status
+      - data.version
+
+  # An x402 payment-gated endpoint. A 402 here is the EXPECTED, healthy answer —
+  # it proves the paywall is live. Payment execution is out of scope for this skill.
+  - name: example-x402-gate
+    url: https://pay.example.com/resource
+    expect_status: 402
+
+  # A POST endpoint with headers and a body.
+  - name: example-echo
+    url: https://api.example.com/echo
+    method: POST
+    headers:
+      Content-Type: application/json
+    body: '{"ping": true}'
+    timeout_seconds: 10
+    expect_status: 200
+    expect_json_fields:
+      - ping

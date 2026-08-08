@@ -1,0 +1,27 @@
+# Secrets — never commit
+.env
+*.env
+!.env.example
+
+# Hermes state / session DB / data volume (HERMES_HOME)
+/data/
+opt-data/
+state.db
+state.db-wal
+state.db-shm
+*.db
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS / editor
+.DS_Store
+*.swp
+
+# Do NOT ignore skills/endpoint-healthcheck/targets.yaml — the empty placeholder
+# is committed on purpose. Fill real endpoints on the deployment volume, or keep
+# them here only if they are not sensitive.
