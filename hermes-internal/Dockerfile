@@ -26,9 +26,16 @@ COPY scripts/ /opt/hermes-internal/scripts/
 # our files take precedence. See the script header for the overwrite policy.
 COPY --chmod=0755 docker/cont-init.d/03-hermes-internal-seed /etc/cont-init.d/03-hermes-internal-seed
 
+# Ensure our scripts are executable even if the build context lost the mode bit.
+RUN chmod 0755 /opt/hermes-internal/scripts/*.sh \
+    /opt/hermes-internal/skills/endpoint-healthcheck/scripts/run_healthcheck.py
+
 # The base image already sets HERMES_HOME=/opt/data and the s6 ENTRYPOINT
-# (entrypoint-dispatch.sh -> /init). We only change the default CMD so the image
-# runs the resident gateway (which also drives the built-in cron scheduler).
-# docker-compose / Railway may override this. `hermes cron`, `hermes -z`, etc.
-# remain available by overriding the command.
-CMD ["gateway", "run"]
+# (entrypoint-dispatch.sh -> /init). Our CMD is a verifying wrapper: it seeds
+# the config-as-code on EVERY start path (covering non-PID-1 platforms where the
+# cont-init hook is skipped) and hard-fails if the applied config does not match
+# this image — so the agent never starts silently on the default config.
+# It then execs `hermes gateway run` (the resident gateway + built-in scheduler).
+# To run something else, override the args, e.g.:
+#   docker run <image> /opt/hermes-internal/scripts/entrypoint.sh cron list
+CMD ["/opt/hermes-internal/scripts/entrypoint.sh", "gateway", "run"]

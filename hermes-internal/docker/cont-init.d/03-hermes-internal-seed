@@ -1,51 +1,14 @@
 #!/command/with-contenv sh
 # shellcheck shell=sh
-# Seed this deployment's config-as-code, skill, and cron script onto the
-# HERMES_HOME data volume.
+# Seed this deployment's config-as-code onto the HERMES_HOME volume at boot.
 #
-# /etc/cont-init.d/* run in lexicographic order as root. This `03-` prefix runs
-# AFTER the upstream `01-hermes-setup` (stage2 hook: creates dirs, seeds the
-# DEFAULT config), `015-supervise-perms`, and `02-reconcile-profiles`, so our
-# files win over the defaults, and before s6-rc starts the gateway service.
+# /etc/cont-init.d/* run as root in lexicographic order on the s6 PID-1 path.
+# This `03-` prefix runs AFTER the upstream init (which seeds defaults + chowns
+# the volume), so our files win. On non-PID-1 platforms cont-init may be
+# skipped; scripts/entrypoint.sh re-runs the same seed there and hard-fails if
+# the config did not take (see UNVERIFIED #3).
 #
-# Overwrite policy:
-#   * config.yaml, SKILL.md, targets.example.yaml, run_healthcheck.py,
-#     scripts/healthcheck.sh  -> overwritten every boot (config-as-code; edit
-#     in the repo, rebuild the image).
-#   * targets.yaml            -> seeded ONLY if absent, so operator-edited
-#     targets on the persistent volume are preserved across restarts.
+# The actual work lives in the shared, idempotent seed.sh so both paths behave
+# identically.
 set -eu
-
-HERMES_HOME="${HERMES_HOME:-/opt/data}"
-SRC="/opt/hermes-internal"
-uid="${HERMES_UID:-10000}"
-gid="${HERMES_GID:-10000}"
-
-echo "[03-hermes-internal-seed] seeding into $HERMES_HOME from $SRC"
-
-skill_dir="$HERMES_HOME/skills/endpoint-healthcheck"
-mkdir -p "$skill_dir/scripts" "$HERMES_HOME/scripts"
-
-# config-as-code (overwrite each boot)
-cp "$SRC/config/config.yaml" "$HERMES_HOME/config.yaml"
-
-# skill runner + docs (overwrite each boot)
-cp "$SRC/skills/endpoint-healthcheck/SKILL.md"              "$skill_dir/SKILL.md"
-cp "$SRC/skills/endpoint-healthcheck/targets.example.yaml"  "$skill_dir/targets.example.yaml"
-cp "$SRC/skills/endpoint-healthcheck/scripts/run_healthcheck.py" "$skill_dir/scripts/run_healthcheck.py"
-
-# targets.yaml — seed only if missing (preserve operator edits on the volume)
-if [ ! -f "$skill_dir/targets.yaml" ]; then
-    cp "$SRC/skills/endpoint-healthcheck/targets.yaml" "$skill_dir/targets.yaml"
-fi
-
-# cron script for the built-in scheduler (--script looks under $HERMES_HOME/scripts/)
-cp "$SRC/scripts/healthcheck.sh" "$HERMES_HOME/scripts/healthcheck.sh"
-chmod 0755 "$HERMES_HOME/scripts/healthcheck.sh"
-
-# ownership so the unprivileged hermes runtime user can read/write.
-# Best-effort: a rootless container cannot chown and does not need to.
-chown -R "$uid:$gid" "$HERMES_HOME/config.yaml" "$skill_dir" "$HERMES_HOME/scripts/healthcheck.sh" 2>/dev/null \
-    || echo "[03-hermes-internal-seed] warning: chown skipped (rootless?) — continuing"
-
-echo "[03-hermes-internal-seed] done"
+exec /opt/hermes-internal/scripts/seed.sh

@@ -22,9 +22,10 @@ services:
       - HERMES_GID=${HERMES_GID:-10000}
     volumes:
       - hermes-data:/opt/data
-    # Resident gateway also drives the built-in cron scheduler. This mirrors the
-    # image's default CMD; shown explicitly for clarity.
-    command: ["gateway", "run"]
+    # No `command:` override — inherit the image CMD (the verifying entrypoint
+    # wrapper that seeds config-as-code and hard-fails if it is not applied,
+    # then runs `hermes gateway run`). Overriding it here would bypass that
+    # safety check.
 
 volumes:
   hermes-data:
