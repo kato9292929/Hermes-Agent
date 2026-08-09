@@ -1,0 +1,43 @@
+# Evaluator — Hermes config (environment B deployment).
+#
+# Role: receive {order, decision, result}, apply the PRE-DECLARED criteria
+# (docs/evaluation-criteria.md) by re-deriving the answer, and return a verdict.
+# It never acts on the world — it only judges.
+#
+# Own HERMES_HOME + own A2A port. Env-A equivalent: runtime/actor.py --role evaluator.
+
+model:
+  default: ${env:HERMES_MODEL}
+  provider: ${env:HERMES_MODEL_PROVIDER}
+
+# PROHIBITS: EVERY execution/action tool. The Evaluator judges from the data in
+# the message and re-derives from the published criteria; it must not be able to
+# run a shell, execute code, fetch, delegate, or drive a browser. An empty
+# toolset gives it no tools at all — the strongest form of "no execution tools"
+# required by the work order for the Evaluator.
+toolsets: []
+
+# Inbound A2A platform (receives evaluation requests from the orchestrator).
+gateway:
+  platforms:
+    a2a:
+      enabled: true
+      extra:
+        port: 9903
+
+# Reply-only; no outbound peers. Inbound identity via A2A_PEER_TOKENS.
+a2a:
+  trusted_peers: [orchestrator]
+
+approvals:
+  mode: manual                 # PROHIBITS: silent execution of gated actions
+  cron_mode: deny              # PROHIBITS: gated actions running unattended in cron
+  denial_breaker_threshold: 3
+  subagent_auto_approve: false
+  deny:
+    - "rm -rf /*"
+    - "*curl*|*sh*"
+    - "git push --force*"
+
+logging:
+  level: INFO

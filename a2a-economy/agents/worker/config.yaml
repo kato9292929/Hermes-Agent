@@ -1,0 +1,44 @@
+# Worker — Hermes config (environment B deployment).
+#
+# Role: receive a work order, judge 可否 (accept/decline) against the published
+# acceptance policy, and if accepted perform the endpoint verification and return
+# the result. Declines are returned as A2A task state REJECTED (docs/a2a-facts.md
+# §2 task states) and recorded by the orchestrator as 非執行.
+#
+# Own HERMES_HOME + own A2A port. Env-A equivalent: runtime/actor.py --role worker.
+
+model:
+  default: ${env:HERMES_MODEL}
+  provider: ${env:HERMES_MODEL_PROVIDER}
+
+# PROHIBITS: terminal/shell, code execution, delegation, browser automation.
+# "safe" = web + vision + image_gen only (no terminal). The endpoint check needs
+# to read an endpoint (web), not to run a shell.
+toolsets:
+  - safe
+
+# Inbound A2A platform (receives orders from the orchestrator).
+gateway:
+  platforms:
+    a2a:
+      enabled: true
+      extra:
+        port: 9902
+
+# The Worker only replies; it does not call peers, so no a2a_agents / outbound
+# a2a toolset. Inbound identity via A2A_PEER_TOKENS (docs/a2a-facts.md §3).
+a2a:
+  trusted_peers: [orchestrator]
+
+approvals:
+  mode: manual                 # PROHIBITS: silent execution of gated actions
+  cron_mode: deny              # PROHIBITS: gated actions running unattended in cron
+  denial_breaker_threshold: 3
+  subagent_auto_approve: false
+  deny:
+    - "rm -rf /*"
+    - "*curl*|*sh*"
+    - "git push --force*"
+
+logging:
+  level: INFO
