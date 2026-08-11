@@ -1,0 +1,19 @@
+{
+  "cycle_id": "cycle-invalid-001",
+  "goal": "Verify one internal endpoint's response and record the outcome.",
+  "select_index": 0,
+  "orders": [
+    {
+      "name": "unjustly-declined",
+      "url": "https://example.internal/healthy",
+      "expect_status": 200,
+      "expect_json_fields": ["status"],
+      "estimated_cost_micro_usd": 300000,
+      "response": {
+        "status_code": 200,
+        "json": {"status": "healthy"}
+      },
+      "_inject_decline": "degraded_input"
+    }
+  ]
+}

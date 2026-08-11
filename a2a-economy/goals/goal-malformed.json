@@ -1,0 +1,17 @@
+{
+  "cycle_id": "cycle-malformed-001",
+  "goal": "Verify one internal endpoint's response and record the outcome.",
+  "select_index": 0,
+  "orders": [
+    {
+      "name": "no-expect-status",
+      "url": "https://example.internal/no-status",
+      "expect_json_fields": ["status"],
+      "estimated_cost_micro_usd": 300000,
+      "response": {
+        "status_code": 200,
+        "json": {"status": "healthy"}
+      }
+    }
+  ]
+}

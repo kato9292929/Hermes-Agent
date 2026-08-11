@@ -63,8 +63,20 @@ def handle_worker(data: dict[str, Any], home: str, caller: str) -> tuple[dict[st
     order = data["order"]
     ledger_mod.audit(home, "inbound", caller, data.get("task_id", "-"),
                      f"work order {order.get('name')}")
-    decision = worker_policy.decide(order, C.BUDGET_CAP_MICRO_USD)
-    result = endpoint_verify.verify(order) if decision["accepted"] else None
+    # TEST-ONLY deviation hook: `_inject_decline` makes the Worker decline for a
+    # given reason REGARDLESS of the acceptance policy. This exists solely to
+    # produce a Worker that deviates from the published criteria, so the
+    # Evaluator's NON_EXECUTION_INVALID path can be exercised (work order M4).
+    # It is not a fallback and does not swallow anything; it is an explicit,
+    # labelled injection. The Evaluator re-derives from the criteria and
+    # independently catches the deviation.
+    inject = order.get("_inject_decline")
+    if inject is not None:
+        decision = {"accepted": False, "reason": inject}
+        result = None
+    else:
+        decision = worker_policy.decide(order, C.BUDGET_CAP_MICRO_USD)
+        result = endpoint_verify.verify(order) if decision["accepted"] else None
     state = STATE_COMPLETED if decision["accepted"] else STATE_REJECTED
     return {"decision": decision, "result": result}, state
 
@@ -144,6 +156,10 @@ def handle_orchestrator(data: dict[str, Any], home: str, caller: str) -> tuple[d
         "context_id": ctx,
         "goal": goal,
         "selected_order": {k: order.get(k) for k in ("name", "url", "expect_status")},
+        # Full raw inputs so a third party can re-derive every verdict from the
+        # ledger alone (docs/evaluation-criteria.md "Determinism / reproducibility").
+        "order": order,
+        "result": result,
         "decision": decision,
         "executed": executed,
         "payment": payref,

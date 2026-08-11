@@ -23,6 +23,18 @@ Both env-B swaps are each isolated to **one file**:
 | 6 | Model wiring (`${env:HERMES_MODEL}`) | no API key in env A | set model env + provider key; `hermes -z "hi"` | `agents/*/config.yaml` |
 | 7 | Chain / wallet / netting choice for payments | deferred to implementer per work order M5 | decide Base(EVM exact) vs Solana(`registerExactSvmScheme`, AA `src/x402.ts:71`); wire in the payment swap | `runtime/payment.py` + README |
 | 8 | A2A partial decline logging | the plugin does NOT audit anti-loop/empty/401/403/429 declines (docs/a2a-facts.md §4) | n/a — mitigated: OUR ledger records every decision, so non-execution is never lost | `runtime/ledger.py` (already mitigated) |
+| 9 | Re-verifier vs a fully self-consistent forgery | `runtime/verify_ledger.py` catches any PARTIAL tamper (verdict, reason, or input alone) — proven by `scripts/tamper-tests.sh`. It cannot distinguish a record in which the order, result, decision AND verdict were all rewritten to be mutually consistent, because that is a valid cycle by construction, not a tamper | out of scope in env A; env B would add per-actor signatures over each stage so a rewrite fails signature check | `runtime/verify_ledger.py` + (env B) signing in `runtime/transport.py` |
+
+## Environment-A additions in this change (now verified in-sandbox)
+
+- **Independent re-derivation is real, not just claimed.** `runtime/verify_ledger.py`
+  re-implements the acceptance policy, degraded classifier, field check, and
+  verdict rules from the criteria prose (imports none of the runtime judgment
+  modules) and returns 7/7 consistent on the clean ledger.
+- **Tamper detection proven.** `scripts/tamper-tests.sh` rejects all three
+  partial tampers with non-zero exit; the original ledger stays exit 0.
+- **All four decline reasons and all four verdicts** are exercised at least once
+  (`scripts/run-all-cases.sh`; see `docs/sample-cycle.md`).
 
 ## Environment B — bring-up sketch (M5)
 
