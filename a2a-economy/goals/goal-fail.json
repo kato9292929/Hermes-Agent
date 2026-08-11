@@ -1,0 +1,18 @@
+{
+  "cycle_id": "cycle-fail-001",
+  "goal": "Verify one internal endpoint's response and record the outcome.",
+  "select_index": 0,
+  "orders": [
+    {
+      "name": "status-mismatch",
+      "url": "https://example.internal/mismatch",
+      "expect_status": 200,
+      "expect_json_fields": ["status"],
+      "estimated_cost_micro_usd": 300000,
+      "response": {
+        "status_code": 500,
+        "json": {"status": "error"}
+      }
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+# Orchestrator — Hermes config (environment B deployment).
+#
+# Role: receive a goal, decompose into work units, place an order to the Worker,
+# pay (mock→x402), forward the result to the Evaluator, record the cycle.
+#
+# Isolation: this agent runs as its own process with its own HERMES_HOME and its
+# own A2A port (docs/a2a-facts.md §5). In env A the same role is exercised by
+# runtime/actor.py --role orchestrator.
+#
+# Partial config, merged over Hermes DEFAULT_CONFIG. Keys verified in
+# docs/a2a-facts.md and (approvals) the phase-2 hermes-internal config.
+
+model:
+  default: ${env:HERMES_MODEL}
+  provider: ${env:HERMES_MODEL_PROVIDER}
+
+# PROHIBITS: shell/terminal, code execution, browser. The orchestrator only needs
+# to CALL OUT to peers, so it gets the a2a outbound toolset and nothing else.
+toolsets:
+  - a2a
+
+# Inbound A2A platform (receives the kickoff goal). docs/a2a-facts.md §1.
+gateway:
+  platforms:
+    a2a:
+      enabled: true
+      extra:
+        port: 9901
+
+# Outbound peers (docs/a2a-facts.md §3). Tokens come from env, never inline.
+a2a_agents:
+  worker:
+    url: http://127.0.0.1:9902/
+    auth:
+      type: bearer
+      token: "${env:A2A_TOKEN_WORKER}"
+    capabilities: [endpoint-verify]
+  evaluator:
+    url: http://127.0.0.1:9903/
+    auth:
+      type: bearer
+      token: "${env:A2A_TOKEN_EVALUATOR}"
+    capabilities: [evaluate]
+
+# Trust + inbound identity: A2A_PEER_TOKENS="orchestrator:..,worker:..,evaluator:.."
+# so each caller's identity is its name (docs/a2a-facts.md §3).
+a2a:
+  trusted_peers: [orchestrator, worker, evaluator]
+
+# Approval posture (phase-2): manual, fail-closed in cron, deny globs, breaker.
+approvals:
+  mode: manual                 # PROHIBITS: silent execution of gated actions
+  cron_mode: deny              # PROHIBITS: gated actions running unattended in cron
+  denial_breaker_threshold: 3
+  subagent_auto_approve: false
+  deny:
+    - "rm -rf /*"
+    - "*curl*|*sh*"
+    - "git push --force*"
+
+logging:
+  level: INFO

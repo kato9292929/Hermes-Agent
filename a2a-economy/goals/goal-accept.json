@@ -1,0 +1,18 @@
+{
+  "cycle_id": "cycle-accept-001",
+  "goal": "Verify one internal endpoint's response and record the outcome.",
+  "select_index": 0,
+  "orders": [
+    {
+      "name": "billing-health",
+      "url": "https://example.internal/billing/health",
+      "expect_status": 200,
+      "expect_json_fields": ["status", "data.version"],
+      "estimated_cost_micro_usd": 300000,
+      "response": {
+        "status_code": 200,
+        "json": {"status": "healthy", "data": {"version": "2.3.1"}}
+      }
+    }
+  ]
+}
