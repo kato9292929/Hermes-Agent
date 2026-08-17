@@ -1,0 +1,5 @@
+HTTP/1.1 402 Payment Required
+www-authenticate: tempo amount=0 currency=USDC
+content-type: application/json
+
+{"error":"proof credential required"}

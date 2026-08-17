@@ -1,0 +1,6 @@
+HTTP/1.1 402 Payment Required
+www-authenticate: tempo amount=0.005 currency=USDC
+content-type: application/json
+content-length: 41
+
+{"error":"payment required","mpp":true}
