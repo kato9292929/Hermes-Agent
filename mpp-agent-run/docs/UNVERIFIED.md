@@ -1,5 +1,17 @@
 # Unverified items — mpp-agent-run
 
+## Environment-B attempt 2026-08-17: HALTED AT PREFLIGHT
+
+`mpp.dev` is blocked by the egress proxy (`403 Forbidden`; see
+`docs/preflight-2026-08-17.md`). Node 20+ and npm registry passed. Per the work
+order we stopped at preflight — no install, account, probe, or payment. Therefore
+**all 8 items below remain UNVERIFIED (not resolved to confirmed)**, each for the
+same concrete reason: mpp.dev could not be reached from this environment. No item
+is deleted; none is marked confirmed. Item #1's status is now "attempted, blocked
+at egress" rather than merely "not attempted".
+
+
+
 Environment A (done here): skill + provisional-catalog extraction, client
 selection, the budget-enforcing wrapper, and its record format — all exercised
 against mock 402 fixtures, no network, no payment. Environment B (not gated;

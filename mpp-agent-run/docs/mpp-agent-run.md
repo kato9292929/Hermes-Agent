@@ -4,9 +4,12 @@ Goal: use the Hermes **mpp-agent** skill to pay one low-priced mpp.dev endpoint
 and capture the whole exchange. This file is the append-target: every field is
 filled from an actual run (`var/run-records.jsonl`), not written by hand.
 
-**Status: environment-B not yet consumed.** The live 402 capture, the real
-payment, and the response are not done (no keys, no network, mppx not installed,
-mpp.dev egress-blocked). Every unfilled field below is `UNVERIFIED (live)`.
+**Status: environment-B HALTED AT PREFLIGHT (2026-08-17).** Node 20+ and the npm
+registry are reachable, but **`mpp.dev` is blocked by the egress proxy
+(`403 Forbidden`)**, so no install, account, probe, or payment was attempted (no
+fixture/mock substitution, no retry/circumvention — per the work order). The
+stopping point is preflight; see `docs/preflight-2026-08-17.md` for the raw log.
+Every unfilled field below remains `UNVERIFIED (live)`.
 
 ## Target & client (from M0)
 
@@ -50,6 +53,7 @@ any unexpected response.
 ## Live run (environment B) — to be filled
 
 ```
+0 停止点:             PREFLIGHT FAILED 2026-08-17 — mpp.dev egress 403 (docs/preflight-2026-08-17.md)
 1 日時:               UNVERIFIED (live)
 2 エンドポイント:      https://api.exa.ai/search
 3 クライアント:        mppx
