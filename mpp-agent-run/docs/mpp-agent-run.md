@@ -4,12 +4,13 @@ Goal: use the Hermes **mpp-agent** skill to pay one low-priced mpp.dev endpoint
 and capture the whole exchange. This file is the append-target: every field is
 filled from an actual run (`var/run-records.jsonl`), not written by hand.
 
-**Status: environment-B HALTED AT PREFLIGHT (2026-08-17).** Node 20+ and the npm
-registry are reachable, but **`mpp.dev` is blocked by the egress proxy
-(`403 Forbidden`)**, so no install, account, probe, or payment was attempted (no
-fixture/mock substitution, no retry/circumvention — per the work order). The
-stopping point is preflight; see `docs/preflight-2026-08-17.md` for the raw log.
-Every unfilled field below remains `UNVERIFIED (live)`.
+**Status: environment-B HALTED AT PREFLIGHT (rechecked 2026-08-21).** Node 20+ and
+the npm registry are reachable, but **`mpp.dev` is still blocked by the egress
+proxy (`403 Forbidden`)** on both 2026-08-17 and the 2026-08-21 re-run, so no
+install, account, probe, or payment was attempted (no fixture/mock substitution,
+no retry/circumvention — per the work order). Stopping point is preflight; raw
+logs in `docs/preflight-2026-08-17.md` and `docs/preflight-2026-08-21.md`. Every
+unfilled field below remains `UNVERIFIED (live)`.
 
 ## Target & client (from M0)
 
