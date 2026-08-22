@@ -22,16 +22,26 @@ SPEND_LEDGER="$VAR/spend-ledger.jsonl"      # append-only cumulative spend
 RUN_RECORDS="$VAR/run-records.jsonl"        # append-only full run records
 
 URL=""; METHOD="GET"; DATA=""; CHALLENGE_FILE=""; DRY_RUN=0
+# Chain-selection passthrough to mppx. mppx itself directs this when a challenge
+# targets a chain the wallet's default RPC is not on (CHAIN_MISMATCH). This is
+# normal client operation (picking the required chain), NOT extra config added to
+# force an otherwise-unpayable endpoint through.
+NETWORK=""; RPC_URL=""
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --method) METHOD="$2"; shift 2;;
         --data) DATA="$2"; shift 2;;
+        --network) NETWORK="$2"; shift 2;;
+        --rpc-url) RPC_URL="$2"; shift 2;;
         --challenge-file) CHALLENGE_FILE="$2"; DRY_RUN=1; shift 2;;
         --dry-run) DRY_RUN=1; shift;;
         http://*|https://*) URL="$1"; shift;;
         *) echo "unknown arg: $1" >&2; exit 64;;
     esac
 done
+MPPX_NET=()
+[ -n "$NETWORK" ] && MPPX_NET+=(--network "$NETWORK")
+[ -n "$RPC_URL" ] && MPPX_NET+=(--rpc-url "$RPC_URL")
 [ -n "$URL" ] || { echo "usage: mpp-pay.sh <url> [--method M --data JSON] [--challenge-file F]" >&2; exit 64; }
 
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -132,10 +142,12 @@ fi
 # as success.
 START_MS="$(python3 -c 'import time;print(int(time.time()*1000))')"
 set +e
+# `${arr[@]+"${arr[@]}"}` expands safely to nothing when empty, even on macOS's
+# bash 3.2 under `set -u`.
 if [ "$METHOD" = "GET" ]; then
-    MPPX_OUT="$(mppx "$URL" -v 2>&1)"; RC=$?
+    MPPX_OUT="$(mppx "$URL" ${MPPX_NET[@]+"${MPPX_NET[@]}"} -v 2>&1)"; RC=$?
 else
-    MPPX_OUT="$(mppx "$URL" --method "$METHOD" --data "$DATA" -v 2>&1)"; RC=$?
+    MPPX_OUT="$(mppx "$URL" --method "$METHOD" --data "$DATA" ${MPPX_NET[@]+"${MPPX_NET[@]}"} -v 2>&1)"; RC=$?
 fi
 set -e
 END_MS="$(python3 -c 'import time;print(int(time.time()*1000))')"
