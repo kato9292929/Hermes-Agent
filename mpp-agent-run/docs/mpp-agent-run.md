@@ -4,13 +4,15 @@ Goal: use the Hermes **mpp-agent** skill to pay one low-priced mpp.dev endpoint
 and capture the whole exchange. This file is the append-target: every field is
 filled from an actual run (`var/run-records.jsonl`), not written by hand.
 
-**Status: LIVE, IN PROGRESS on the operator's Mac (2026-08-22).** This remote
-Claude Code session still cannot reach `mpp.dev` (egress 403; see
-`docs/preflight-*.md`), so the live steps are being run by the operator on a local
-macOS machine with open egress, and the transcript is pasted back here. Progress:
-`mppx` installed, account created (M3.0 confirmed — see below), and the
-`ping/paid` smoke test attempted; it stopped on a **CHAIN_MISMATCH** before any
-charge. Details in "Live progress" below. The Exa target has not been paid yet.
+**Status: SMOKE TEST PASSED on the operator's Mac (2026-08-22).** This remote
+session still cannot reach `mpp.dev` (egress 403; see `docs/preflight-*.md`), so
+the operator ran the live steps locally. The `402 → pay → success` cycle
+**completed** against `mpp.dev/api/ping/paid` on **Tempo testnet** (PathUSD test
+token — no real money). This confirmed the mpp-agent path and answered UNVERIFIED
+#3 (ping/paid returns an **MPP `tempo`** challenge, which the skill handles
+directly — Exa's x402 is a separate system). Still pending: the real-money
+payment to the Exa mainnet target, via the budget wrapper. See "Live run #1"
+below for the verbatim challenge + receipt.
 
 ## Live progress — operator's Mac (2026-08-22)
 
@@ -92,26 +94,75 @@ any unexpected response.
 | 7 | レスポンス本文（全文） | `.response_body` (env B, verbatim mppx output) |
 | 8 | 所要時間 | wrapper-measured `duration_ms` (env B) |
 
-## Live run (environment B) — to be filled
+## Live run #1 — mpp.dev ping/paid (TESTNET) — SUCCESS (2026-08-22)
 
+The `402 → pay → success` cycle completed on the operator's Mac. This is the
+mpp.dev **test** endpoint on Tempo **testnet** (chainId 42431), paid in **PathUSD**
+(a test token) — so it proves the mpp-agent payment path end to end, but **no real
+money moved**. The real-money target (Exa mainnet USDC) is still pending.
+
+Command (operator's Mac):
 ```
-0 停止点:             PREFLIGHT FAILED 2026-08-17 — mpp.dev egress 403 (docs/preflight-2026-08-17.md)
-1 日時:               UNVERIFIED (live)
-2 エンドポイント:      https://api.exa.ai/search
-3 クライアント:        mppx
-4 402チャレンジ本文:   UNVERIFIED (live) — paste the FULL www-authenticate line(s)
-                       and raw 402 headers here; if Exa returns x402
-                       PAYMENT-REQUIRED instead of MPP www-authenticate, the
-                       wrapper FAILS LOUDLY and that failure is the record
-5 支払い(tx/決済ID):   UNVERIFIED (live)
-6 支払額:              UNVERIFIED (live) — must be ≤ $0.10 or the wrapper stops
-7 レスポンス本文:      UNVERIFIED (live) — full merchant JSON
-8 所要時間:            UNVERIFIED (live)
+npx mppx https://mpp.dev/api/ping/paid --network testnet -v
 ```
 
-If the run is interrupted, record WHERE it stopped (challenge-method mismatch /
-insufficient funds / client prerequisite unmet / facilitator response) verbatim
-— per the work order a broken run is also article material.
+Verbatim `-v` output (challenge + receipt):
+```
+Payment Required
+  Challenge  description Ping endpoint access   expires 2026-08-22T09:27:00.096Z
+             intent charge   method tempo   realm mpp.sh
+  Request    amount 100000 (0.1 PathUSD)
+             recipient 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+  Details    chainId 42431 (testnet)   feePayer true
+
+Payment Receipt
+  reference 0xae3d979055ddbd66f52752b890c860881974b800b3ddc5c325776a2a3768df1b
+  status success   timestamp 2026-08-22T09:22:01.950Z
+```
+
+Record (8 fields):
+```
+1 日時:               2026-08-22T09:22:01.950Z (receipt timestamp)
+2 エンドポイント:      https://mpp.dev/api/ping/paid
+3 クライアント:        mppx (raw `npx mppx ... --network testnet -v`; NOT via the
+                       budget wrapper — see note below)
+4 402チャレンジ本文:   method tempo / realm mpp.sh / intent charge /
+                       amount 100000 (0.1 PathUSD) /
+                       recipient 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 /
+                       chainId 42431 (testnet) / feePayer true /
+                       description "Ping endpoint access" / expires 2026-08-22T09:27:00.096Z
+5 支払い(決済ID):     reference 0xae3d979055ddbd66f52752b890c860881974b800b3ddc5c325776a2a3768df1b
+6 支払額:              100000 base units = 0.1 PathUSD (TESTNET token, not USD)
+7 レスポンス本文:      receipt status "success" (the ping endpoint's 200 body was
+                       not separately shown by `mppx -v`; capture it next run)
+8 所要時間:            not measured (raw mppx has no timer; the wrapper records duration_ms)
+```
+
+Notes / caveats (kept honest):
+- **Not through the budget wrapper.** This was raw `mppx`. The wrapper
+  (`scripts/mpp-pay.sh`) would have treated currency **PathUSD** as *unknown* and
+  **refused** (fail-loud, no invented FX) — which is the correct conservative
+  behavior. So the wrapper cannot pay a PathUSD testnet challenge as-is, and we do
+  NOT hack PathUSD into the USD cap to force it. The wrapper is for the real-money
+  USD/USDC path (Exa mainnet).
+- 0.1 PathUSD would map to exactly the $0.10 per-request cap **if** PathUSD were
+  treated 1:1 with USD — another reason the wrapper's refuse-unknown-currency rule
+  matters on mainnet.
+- An earlier attempt showed `crypto is not defined` under an older Node; switching
+  to **Node 20.20.2** cleared it (alongside `--network testnet` clearing
+  CHAIN_MISMATCH).
+
+## Live run #2 — Exa /search (MAINNET, real USDC) — PENDING
+
+```
+0 状態:               PENDING — needs real USDC funding (human decision) + run via
+                      scripts/mpp-pay.sh (budget-enforced). Amount must be ≤ $0.10.
+1-8:                  UNVERIFIED (live)
+```
+
+If a run is interrupted, record WHERE it stopped (challenge-method mismatch /
+insufficient funds / client prerequisite unmet / facilitator response) verbatim —
+per the work order a broken run is also article material.
 
 ## Environment-A demonstration (no network, no payment)
 

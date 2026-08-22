@@ -1,5 +1,27 @@
 # Unverified items — mpp-agent-run
 
+## Environment-B smoke test 2026-08-22 (operator's Mac): ping/paid PASSED
+
+`402 → pay → success` completed against `mpp.dev/api/ping/paid` on Tempo testnet
+(verbatim challenge + receipt in `docs/mpp-agent-run.md` "Live run #1"). Resolved:
+
+- **#2 live 402 body — CONFIRMED.** `method tempo`, `realm mpp.sh`, `intent charge`,
+  `amount 100000 (0.1 PathUSD)`, `recipient 0xf39Fd6…92266`, `chainId 42431 (testnet)`,
+  `feePayer true`.
+- **#3 MPP-tempo vs x402 — CONFIRMED.** ping/paid returns an **MPP `tempo`**
+  challenge (not x402, not Stripe). The mpp-agent skill handles it directly. Exa's
+  x402 remains a separate system to be tested on its own.
+- **#5 the paid call — CONFIRMED (testnet).** Payment succeeded end to end; still
+  UNVERIFIED for a real-money (mainnet USDC) charge and via the budget wrapper.
+- **#6 receipt/tx field — CONFIRMED.** The field is **`reference`** (value
+  `0xae3d97…68df1b`), alongside `status` and `timestamp`.
+- **#7 currency — CONFIRMED (testnet) / OPEN (mainnet).** Testnet currency is
+  **PathUSD** (a test token), amount in base units (100000 = 0.1 PathUSD, 6 dp).
+  The wrapper correctly treats PathUSD as unknown-currency and refuses; the
+  USD/USDC cap applies to the mainnet run.
+- **STILL OPEN: real-money run, run-through-the-wrapper, endpoint 200 body (#8-ish),
+  timing, facilitator internals, cross-machine account import.**
+
 ## Environment-B live run 2026-08-22 (operator's Mac): partial resolution
 
 The remote session still cannot reach mpp.dev, so the operator ran the live steps
