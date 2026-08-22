@@ -4,13 +4,54 @@ Goal: use the Hermes **mpp-agent** skill to pay one low-priced mpp.dev endpoint
 and capture the whole exchange. This file is the append-target: every field is
 filled from an actual run (`var/run-records.jsonl`), not written by hand.
 
-**Status: environment-B HALTED AT PREFLIGHT (rechecked 2026-08-21).** Node 20+ and
-the npm registry are reachable, but **`mpp.dev` is still blocked by the egress
-proxy (`403 Forbidden`)** on both 2026-08-17 and the 2026-08-21 re-run, so no
-install, account, probe, or payment was attempted (no fixture/mock substitution,
-no retry/circumvention — per the work order). Stopping point is preflight; raw
-logs in `docs/preflight-2026-08-17.md` and `docs/preflight-2026-08-21.md`. Every
-unfilled field below remains `UNVERIFIED (live)`.
+**Status: LIVE, IN PROGRESS on the operator's Mac (2026-08-22).** This remote
+Claude Code session still cannot reach `mpp.dev` (egress 403; see
+`docs/preflight-*.md`), so the live steps are being run by the operator on a local
+macOS machine with open egress, and the transcript is pasted back here. Progress:
+`mppx` installed, account created (M3.0 confirmed — see below), and the
+`ping/paid` smoke test attempted; it stopped on a **CHAIN_MISMATCH** before any
+charge. Details in "Live progress" below. The Exa target has not been paid yet.
+
+## Live progress — operator's Mac (2026-08-22)
+
+Environment: operator macOS (open egress), NOT this remote session. Commands and
+output pasted by the operator. Only the public address and identifiers are
+recorded; no key/seed (SKILL.md:115).
+
+### M3.0 — where `mppx account create` stores the account: CONFIRMED
+
+```
+$ npx mppx account create
+Account "main" saved to keychain.
+Address 0xF3531e9A57DECCf08CF36044a99Cd6fBC68852F3
+Fund testnet tokens: mppx account fund --account main --network testnet
+```
+
+- **Storage: the OS keychain** (macOS Keychain), not a dotfile or an env var.
+  Account label `main`; address `0xF3531e9A57DECCf08CF36044a99Cd6fBC68852F3`.
+- **Import of a pre-funded account across machines:** since the secret lives in
+  the OS keychain, moving it means a keychain-level import, not copying a file.
+  The exact `mppx` import command is still `UNVERIFIED` — resolve with
+  `npx mppx account --help` (do not print the key).
+
+### M3.2/M3.3 — `ping/paid` smoke test: stopped at CHAIN_MISMATCH (no charge)
+
+```
+$ npx mppx https://mpp.dev/api/ping/paid
+Error (CHAIN_MISMATCH): Challenge requires chainId 42431, but RPC is chainId 4217.
+Use --network testnet or --rpc-url https://rpc.moderato.tempo.xyz.
+```
+
+- The `ping/paid` challenge targets **chainId 42431** (Tempo "moderato" testnet,
+  per the suggested `rpc.moderato.tempo.xyz`); the freshly-created account's
+  default RPC is **chainId 4217**. mppx refused rather than paying on the wrong
+  chain — no payment occurred, budget untouched.
+- This was raw `npx mppx`, NOT the budget wrapper `scripts/mpp-pay.sh`. Per the
+  work order the actual paid call must go through the wrapper (budget + record);
+  the raw call here only surfaced the chain requirement.
+- Next: capture the raw 402 body (`curl -i https://mpp.dev/api/ping/paid`) so the
+  challenge's amount/currency/method/chain are on record, then, if funded on
+  testnet, run the paid call through the wrapper with the matching network.
 
 ## Target & client (from M0)
 

@@ -1,5 +1,34 @@
 # Unverified items — mpp-agent-run
 
+## Environment-B live run 2026-08-22 (operator's Mac): partial resolution
+
+The remote session still cannot reach mpp.dev, so the operator ran the live steps
+on a local macOS machine and pasted the transcript. Resolved / advanced so far
+(full transcript in `docs/mpp-agent-run.md` "Live progress"):
+
+- **CONFIRMED — mppx install + account create.** `npx mppx account create`
+  succeeded. (Formerly part of #5.)
+- **CONFIRMED — M3.0 key storage location.** Keys are stored in the **OS keychain**
+  (macOS Keychain), not a dotfile or env var. Address
+  `0xF3531e9A57DECCf08CF36044a99Cd6fBC68852F3`. Source: `mppx account create`
+  output. (Cross-machine import command still UNVERIFIED — needs `mppx account --help`.)
+- **CONFIRMED — the challenge is chain-based (Tempo), not Stripe.** `ping/paid`
+  errored `CHAIN_MISMATCH: Challenge requires chainId 42431, but RPC is chainId
+  4217` — an on-chain Tempo challenge (42431 = "moderato" testnet). This bears on
+  #3 (it is not `method="stripe"`), though the raw `www-authenticate`/`accepts`
+  body is still uncaptured (#2 open).
+- **STILL UNVERIFIED — the paid call itself (#5 payment).** No payment happened;
+  mppx refused on the chain mismatch before charging. Needs testnet funds + the
+  matching `--network`/`--rpc-url`, then the call via `scripts/mpp-pay.sh`.
+- **STILL UNVERIFIED — #2 live 402 body** (need `curl -i https://mpp.dev/api/ping/paid`),
+  **#6 receipt/tx field**, **#7 currency on testnet**, **#8 facilitator response**.
+
+New finding to reconcile later: the smoke-test path is **testnet** (chainId 42431),
+whereas the Exa target was scoped as mainnet USDC (~$0.005). The budget cap is
+about real money; a testnet smoke test spends no real funds. Decide with the
+operator whether the "real payment" record should be a mainnet target after the
+testnet path is proven.
+
 ## Environment-B attempt 2026-08-17: HALTED AT PREFLIGHT
 
 `mpp.dev` is blocked by the egress proxy (`403 Forbidden`; see
