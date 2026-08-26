@@ -1,5 +1,42 @@
 # Unverified items — mpp-agent-run
 
+## Environment-B verification COMPLETE 2026-08-26 (operator's Mac)
+
+Two live runs (full detail in `docs/mpp-agent-run.md`). The payment path is proven
+end to end; the only stop was zero wallet balance. Resolved:
+
+- **#2 live 402 body — CONFIRMED (mainnet).** Exa `/search` POST returns a **dual**
+  402: x402 body (`accepts`: Base + Solana USDC, `$0.007`) AND MPP `tempo` header
+  (scheme `Payment`; decoded `request` = amount 7000, currency `0x20C0…E8b50` Tempo
+  USDC, chainId 4217, recipient `0xB98eF…332dbC`, feePayer true).
+- **#3 tempo vs x402 — CONFIRMED, and the M0 provisional CORRECTED.** figures.md
+  (2026-07) had Exa as x402-only; live (2026-08-26) Exa serves **both**, and mppx
+  pays the **tempo** rail. So Exa IS usable via mpp-agent (earlier assumption
+  overturned).
+- **#5 the paid call — CONFIRMED to the chain boundary.** mppx signed + submitted
+  the tx to Tempo mainnet; reverted only on `InsufficientBalance(available 0,
+  required 7000)`. A *settled* real charge still needs funding.
+- **#6 receipt/tx field — CONFIRMED** (`reference`, from the testnet run #1).
+- **#7 currency — CONFIRMED.** Real challenges carry a **token contract address**
+  as currency (Tempo USDC `0x20C0…E8b50`; Base USDC `0x833589f…`), not the string
+  "USDC". Amount is base units (7000 = $0.007, 6 dp).
+
+Price variance to note (per the work order): MPPscan 2026-07 ≈ **$0.0051** vs live
+2026-08-26 **$0.007** for Exa /search.
+
+### New finding — wrapper vs the REAL header (recorded, NOT hacked)
+
+`challenge.py` parses SKILL.md's simplified `tempo amount=X currency=Y` form. The
+real Exa header is `Payment … method="tempo" request="<base64-json>"`: the amount
+is inside the base64 blob and the currency is a token address. Fed the real header
+the wrapper **fails loud** (`challenge has no amount`) — it does not mis-pay, which
+is correct, but it cannot yet budget-enforce a real challenge. Making it
+real-payment-ready = decode the base64 `request` + enforce the USD cap off the
+x402 body's `totalUsd` (or a USDC token-address registry). Deliberate future work,
+not a hack to force payment. STILL OPEN: funded real charge; run-through-wrapper.
+
+
+
 ## Environment-B smoke test 2026-08-22 (operator's Mac): ping/paid PASSED
 
 `402 → pay → success` completed against `mpp.dev/api/ping/paid` on Tempo testnet
