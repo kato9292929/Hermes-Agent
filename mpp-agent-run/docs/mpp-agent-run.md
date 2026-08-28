@@ -231,6 +231,37 @@ enforce the USD cap off the x402 body's `totalUsd` / a USDC token-address regist
 have to run through mppx directly, which has no $-cap; the `--confirm` prompt is the
 manual guard. This is recorded, not resolved.
 
+## Live run #3 — via the Hermes agent (2026-08-26): skill did NOT activate
+
+The operator installed the skill into Hermes (`official/payments/mpp-agent`,
+security scan SAFE; the one MEDIUM note is only that `npm install -g mppx` is not
+version-pinned), then `/reset` and gave the agent this task:
+
+> mpp-agentスキルを使って、Exaのx402エンドポイント https://api.exa.ai/search に
+> 「test」というクエリで検索リクエストを送って。402が返ったら支払いの内容
+> （金額・チェーン・宛先）を教えて。
+
+**Outcome (model `claude-sonnet-4-6`):** the agent reported **"mpp-agent スキルは
+インストールされていない"**, did NOT use the skill or mppx, and fell back to raw
+`curl -i -X POST https://api.exa.ai/search`. It then read **only the x402 body**
+(not the MPP `tempo` header) and reported the two x402 options correctly:
+- Base `eip155:8453`, USDC `0x833589f…`, amount 7000 = **$0.007**, payTo `0x6d6E695b…`
+- Solana, USDC `EPjFWdd5…`, amount 7000, payTo `12Ec2cJmfR1…`, feePayer `Hc3sdEAs…`
+  (feePayer/nonce rotate per challenge — this differs from run #2's, as expected)
+
+It finished by offering to *create* a skill.
+
+**Finding (the point of this run):** the goal was "Hermes pays via the mpp-agent
+skill." That did **not** happen — the installed skill was **not in the agent's
+skill list this session**, so the agent used a curl fallback and an x402-only
+reading (never touching the tempo rail or mppx). So run #3 is a record of
+*Hermes reading the 402 by fallback*, not of the skill driving a payment. The
+skill-activation gap (install said "effective next session", `/reset` did not
+surface it) is the thing to fix next — likely a full Hermes **process restart**
+(skills are enumerated at process start), and/or confirming the install landed in
+the running profile's `HERMES_HOME`. Do NOT let the agent create a new skill — the
+official one already exists; a duplicate would diverge.
+
 ## Environment-A demonstration (no network, no payment)
 
 The wrapper's probe→parse→budget→record pipeline is exercised in env A against
